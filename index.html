@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Estadístico - Examen Práctico</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #27ae60;
+            --bg: #f4f7f6;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        
+        h1 { text-align: center; color: var(--primary); margin-bottom: 30px; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+        
+        /* Tarjetas de Tendencia Central */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .card { background: var(--primary); color: white; padding: 20px; border-radius: 10px; text-align: center; transition: transform 0.3s; }
+        .card:hover { transform: translateY(-5px); }
+        .card h3 { margin: 0; font-size: 0.9em; text-transform: uppercase; opacity: 0.8; }
+        .card p { margin: 10px 0 0; font-size: 2em; font-weight: bold; }
+
+        /* Tablas */
+        .table-container { overflow-x: auto; margin-bottom: 40px; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 15px; border: 1px solid #eee; text-align: center; }
+        th { background-color: var(--secondary); color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+
+        /* Botón y Sección de Gráficas */
+        .btn-container { text-align: center; margin: 40px 0; }
+        .btn-view { background-color: var(--accent); color: white; border: none; padding: 15px 40px; font-size: 1.1em; border-radius: 30px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3); }
+        .btn-view:hover { background-color: #219150; transform: scale(1.05); }
+
+        #charts-section { display: none; animation: fadeIn 0.8s; }
+        .chart-wrapper { margin-bottom: 50px; padding: 20px; border: 1px solid #eee; border-radius: 10px; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Reporte Estadístico Profesional</h1>
+
+    <div class="stats-grid">
+        <div class="card"><h3>Media</h3><p id="media">-</p></div>
+        <div class="card"><h3>Mediana</h3><p id="mediana">-</p></div>
+        <div class="card"><h3>Moda</h3><p id="moda">-</p></div>
+    </div>
+
+    <h2>Tabla de Frecuencias Agrupadas (Peso)</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Intervalo (Clase)</th>
+                    <th>Frecuencia Absoluta</th>
+                    <th>Frecuencia Relativa</th>
+                    <th>Frecuencia Acumulada</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-frecuencias">
+                </tbody>
+        </table>
+    </div>
+
+    <div class="btn-container">
+        <button class="btn-view" onclick="mostrarResultados()">Visualizar Gráficos del Proyecto</button>
+    </div>
+
+    <div id="charts-section">
+        <div class="chart-wrapper">
+            <h3>Distribución por Color (Gráfica de Barras)</h3>
+            <canvas id="barChart"></canvas>
+        </div>
+        <div class="chart-wrapper">
+            <h3>Participación por Color (Diagrama de Pastel)</h3>
+            <canvas id="pieChart"></canvas>
+        </div>
+        <div class="chart-wrapper">
+            <h3>Tendencia de Peso (Polígono de Frecuencias)</h3>
+            <canvas id="lineChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    let datosCargados = null;
+
+    // 1. Función para cargar el JSON generado por Python
+    async function cargarDatos() {
+        try {
+            const respuesta = await fetch('datos.json');
+            datosCargados = await respuesta.json();
+            llenarInfoBasica();
+        } catch (error) {
+            console.error("Error al cargar el JSON. Asegúrate de usar Live Server.", error);
+            alert("Error: No se pudo cargar 'datos.json'. Recuerda abrir esto con Live Server en VS Code.");
+        }
+    }
+
+    // 2. Llenar tendencia central y tabla al iniciar
+    function llenarInfoBasica() {
+        // Llenar tarjetas
+        document.getElementById('media').innerText = datosCargados.tendencia_central.media;
+        document.getElementById('mediana').innerText = datosCargados.tendencia_central.mediana;
+        document.getElementById('moda').innerText = datosCargados.tendencia_central.moda;
+
+        // Llenar tabla
+        const tabla = document.getElementById('tabla-frecuencias');
+        const peso = datosCargados.frecuencias_peso;
+        
+        peso.intervalos.forEach((inter, i) => {
+            const fila = `<tr>
+                <td>${inter}</td>
+                <td>${peso.absoluta[i]}</td>
+                <td>${peso.relativa[i]}%</td>
+                <td>${peso.acumulada[i]}</td>
+            </tr>`;
+            tabla.innerHTML += fila;
+        });
+    }
+
+    // 3. Función del botón para mostrar gráficas
+    function mostrarResultados() {
+        const seccion = document.getElementById('charts-section');
+        seccion.style.display = 'block';
+        window.scrollTo({ top: seccion.offsetTop, behavior: 'smooth' });
+        renderizarGraficas();
+    }
+
+    // 4. Lógica de Chart.js
+    function renderizarGraficas() {
+        const color = datosCargados.frecuencias_color;
+        const peso = datosCargados.frecuencias_peso;
+
+        // Barras
+        new Chart(document.getElementById('barChart'), {
+            type: 'bar',
+            data: {
+                labels: color.labels,
+                datasets: [{
+                    label: 'Frecuencia Absoluta',
+                    data: color.absoluta,
+                    backgroundColor: '#3498db'
+                }]
+            }
+        });
+
+        // Pastel
+        new Chart(document.getElementById('pieChart'), {
+            type: 'pie',
+            data: {
+                labels: color.labels,
+                datasets: [{
+                    data: color.relativa,
+                    backgroundColor: ['#e74c3c', '#f1c40f', '#2ecc71', '#9b59b6', '#34495e']
+                }]
+            }
+        });
+
+        // Polígono de Frecuencias
+        new Chart(document.getElementById('lineChart'), {
+            type: 'line',
+            data: {
+                labels: peso.intervalos,
+                datasets: [{
+                    label: 'Polígono de Frecuencias (Absoluta)',
+                    data: peso.absoluta,
+                    borderColor: '#27ae60',
+                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            }
+        });
+    }
+
+    // Llamar a la carga inicial
+    cargarDatos();
+</script>
+
+</body>
+</html>
