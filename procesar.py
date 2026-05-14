@@ -4,28 +4,24 @@ import json
 
 def generar_estadisticas():
     try:
-        # 1. Cargar el CSV
+        
         df = pd.read_csv('examenpractivo.csv')
         
-        # 2. Limpieza básica
-        # Convertimos a numérico y eliminamos nulos solo para los cálculos
+        #Limpio
         df['peso'] = pd.to_numeric(df['peso'], errors='coerce')
         peso_clean = df['peso'].dropna()
 
-        # 3. Medidas de Tendencia Central
+        #MTC
         media = float(peso_clean.mean())
         mediana = float(peso_clean.median())
         moda = float(peso_clean.mode()[0])
 
-        # 4. Frecuencias Cualitativas (Variable: Color)
-        # Eliminamos NAs para la estadística de colores
+        #Fuera NA
         df_color = df.dropna(subset=['color'])
         freq_abs_color = df_color['color'].value_counts().to_dict()
         total_colores = sum(freq_abs_color.values())
         freq_rel_color = {k: round((v / total_colores) * 100, 2) for k, v in freq_abs_color.items()}
 
-        # 5. Frecuencias Cuantitativas Agrupadas (Variable: Peso)
-        # Creamos 5 intervalos (puedes ajustar el número de bins)
         counts, bin_edges = np.histogram(peso_clean, bins=5)
         
         intervalos = []
@@ -36,7 +32,7 @@ def generar_estadisticas():
         freq_rel_peso = [(v / len(peso_clean)) * 100 for v in counts]
         freq_acum_peso = np.cumsum(counts).tolist()
 
-        # 6. Estructurar los datos para el JSON
+        #JSON
         datos_finales = {
             "tendencia_central": {
                 "media": round(media, 2),
@@ -56,7 +52,7 @@ def generar_estadisticas():
             }
         }
 
-        # 7. Guardar en datos.json
+        #Guardar en JSON
         with open('datos.json', 'w', encoding='utf-8') as f:
             json.dump(datos_finales, f, indent=4, ensure_ascii=False)
 
